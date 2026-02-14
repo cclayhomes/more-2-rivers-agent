@@ -1,5 +1,4 @@
 import { Draft } from '@prisma/client';
-import { DraftStatus } from '../types';
 import { prisma } from './db';
 import { hashText } from '../utils/hash';
 import { createDraftFromCandidate, formatFacebookMessage } from './contentService';
@@ -91,7 +90,7 @@ export const approveDraft = async (
   if (!draft) {
     throw new Error('Draft not found');
   }
-  if (draft.status === DraftStatus.POSTED) {
+  if (draft.status === 'POSTED') {
     return draft;
   }
 
