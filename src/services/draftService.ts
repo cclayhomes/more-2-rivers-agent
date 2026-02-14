@@ -1,4 +1,5 @@
-import { Draft, DraftStatus } from '@prisma/client';
+import { Draft } from '@prisma/client';
+import { DraftStatus } from '../types';
 import { prisma } from './db';
 import { hashText } from '../utils/hash';
 import { createDraftFromCandidate, formatFacebookMessage } from './contentService';
