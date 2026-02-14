@@ -1,4 +1,5 @@
-import { DraftType } from '@prisma/client';
+export type DraftType = 'DEV' | 'SCHOOL' | 'INFRA' | 'EVENT' | 'MARKET' | 'NEWS';
+export type DraftStatus = 'QUEUED' | 'APPROVED' | 'REJECTED' | 'POSTED';
 
 export interface SourceConfig {
   name: string;
