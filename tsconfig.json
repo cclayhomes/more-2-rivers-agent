@@ -11,5 +11,6 @@
     "skipLibCheck": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src", "tests", "sources.json", "denylist.json"]
+  "include": ["src", "sources.json", "denylist.json"],
+  "exclude": ["tests", "node_modules", "dist"]
 }
