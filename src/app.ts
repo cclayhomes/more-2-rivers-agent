@@ -12,7 +12,7 @@ export const createApp = () => {
     res.json({ status: 'ok' });
   });
 
-  app.post('/test/trigger-draft', async (_req, res) => {
+  app.get('/test/trigger-draft', async (_req, res) => {
     try {
       const draft = await createDailyDraft();
       if (draft) {
