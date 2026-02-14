@@ -1,5 +1,4 @@
-import { DraftType } from '@prisma/client';
-import { CandidateItem, DraftContent } from '../types';
+import { CandidateItem, DraftContent, DraftType } from '../types';
 
 const PRIMARY = ['two rivers', 'zephyrhills', 'sr-56', 'pasco county'];
 const TYPE_MAP: Array<{ keywords: string[]; type: DraftType }> = [
