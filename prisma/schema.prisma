@@ -7,39 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum DraftStatus {
-  QUEUED
-  APPROVED
-  REJECTED
-  POSTED
-}
-
-enum DraftType {
-  DEV
-  SCHOOL
-  INFRA
-  EVENT
-  MARKET
-  NEWS
-}
-
 model Draft {
-  id            Int         @id @default(autoincrement())
-  draftId       String      @unique
-  dateFound     DateTime
-  type          DraftType
-  headline      String
-  bullets       String
-  localContext  String
-  sourceUrl     String
-  sourceName    String
-  status        DraftStatus @default(QUEUED)
-  postedAt      DateTime?
-  facebookPostId String?
-  urlHash       String
-  titleHash     String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id              Int       @id @default(autoincrement())
+  draftId         String    @unique
+  dateFound       DateTime
+  type            String
+  headline        String
+  bullets         String
+  localContext    String
+  sourceUrl       String
+  sourceName      String
+  status          String    @default("QUEUED")
+  postedAt        DateTime?
+  facebookPostId  String?
+  urlHash         String
+  titleHash       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([status])
   @@index([urlHash, titleHash])
