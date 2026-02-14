@@ -1,15 +1,46 @@
 [
   {
-    "name": "Pasco County News",
+    "name": "WFLA Pasco County",
     "type": "rss",
-    "url": "https://www.pascocountyfl.net/rss/news.xml"
+    "url": "https://www.wfla.com/news/pasco-county/feed/"
   },
   {
-    "name": "FDOT District 7",
+    "name": "WFLA Tampa Bay",
+    "type": "rss",
+    "url": "https://www.wfla.com/feed/"
+  },
+  {
+    "name": "NatureCoaster Pasco",
+    "type": "rss",
+    "url": "https://naturecoaster.com/feed"
+  },
+  {
+    "name": "City of Zephyrhills News",
+    "type": "rss",
+    "url": "https://www.zephyrhills.gov/RSSFeed.aspx?ModID=1&CID=All-newsflash.xml"
+  },
+  {
+    "name": "ABC Action News Local",
+    "type": "rss",
+    "url": "https://www.tampabay28.com/news/local-news.rss"
+  },
+  {
+    "name": "Pasco County Schools",
     "type": "html",
-    "url": "https://www.fdot.gov/info/co/news.shtm",
+    "url": "https://www.pasco.k12.fl.us/news",
     "selectors": {
-      "item": "article, .news-item, li",
+      "item": ".field-content, .views-row, article",
+      "title": "h2, h3, a",
+      "link": "a",
+      "snippet": "p, .field-content"
+    }
+  },
+  {
+    "name": "Pasco County Government",
+    "type": "html",
+    "url": "https://www.pascocountyfl.gov/news",
+    "selectors": {
+      "item": ".news-item, article, .card, li",
       "title": "h2, h3, a",
       "link": "a",
       "snippet": "p"
