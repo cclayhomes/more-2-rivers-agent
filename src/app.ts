@@ -1,6 +1,6 @@
 import express from 'express';
 import smsWebhook from './routes/smsWebhook';
-import { createDailyDraft } from './services/draftService';
+import { createDailyDraft, approveDraft, rejectDraft } from './services/draftService';
 import { prisma } from './services/db';
 import { hashText } from './utils/hash';
 import { sendApprovalRequestSms } from './services/twilioService';
@@ -32,6 +32,10 @@ export const createApp = () => {
     try {
       const draftId = '1';
       const headline = 'Two Rivers Ranked Among Top Master-Planned Communities';
+      const existing = await prisma.draft.findUnique({ where: { draftId } });
+      if (existing) {
+        return res.json({ success: true, draftId: existing.draftId, headline: existing.headline, status: existing.status, message: 'Already exists' });
+      }
       const draft = await prisma.draft.create({
         data: {
           draftId,
@@ -49,6 +53,24 @@ export const createApp = () => {
       });
       await sendApprovalRequestSms(draft.draftId, draft.headline);
       res.json({ success: true, draftId: draft.draftId, headline: draft.headline, status: draft.status });
+    } catch (error) {
+      res.status(500).json({ success: false, error: String(error) });
+    }
+  });
+
+  app.get('/test/approve/:id', async (req, res) => {
+    try {
+      const draft = await approveDraft(req.params.id);
+      res.json({ success: true, draftId: draft.draftId, status: draft.status, facebookPostId: draft.facebookPostId });
+    } catch (error) {
+      res.status(500).json({ success: false, error: String(error) });
+    }
+  });
+
+  app.get('/test/reject/:id', async (req, res) => {
+    try {
+      const draft = await rejectDraft(req.params.id);
+      res.json({ success: true, draftId: draft.draftId, status: draft.status });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
     }
