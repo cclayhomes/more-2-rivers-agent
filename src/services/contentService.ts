@@ -1,6 +1,8 @@
 import { CandidateItem, DraftContent, DraftType } from '../types';
 
-const PRIMARY = ['two rivers', 'zephyrhills', 'sr-56', 'pasco county'];
+// V1 scope: ONLY "Two Rivers" qualifies. No Zephyrhills/Pasco fallback.
+const PRIMARY = ['two rivers'];
+
 const TYPE_MAP: Array<{ keywords: string[]; type: DraftType }> = [
   { keywords: ['school', 'student', 'district'], type: 'SCHOOL' },
   { keywords: ['road', 'traffic', 'fdot', 'infrastructure', 'bridge', 'sr-56', 'i-75'], type: 'INFRA' },
@@ -11,11 +13,14 @@ const TYPE_MAP: Array<{ keywords: string[]; type: DraftType }> = [
 
 export const isRelevant = (candidate: CandidateItem, denylist: string[]): boolean => {
   const text = `${candidate.title} ${candidate.textForMatch}`.toLowerCase();
-  const hasPrimary = PRIMARY.some((k) => text.includes(k));
-  if (!hasPrimary) {
+
+  // Hard rule: "two rivers" must appear in title OR fetched text
+  const hasTwoRivers = text.includes('two rivers');
+  if (!hasTwoRivers) {
     return false;
   }
 
+  // Denylist check (crime, politics, tragedy, generic events, etc.)
   const denied = denylist.some((word) => text.includes(word.toLowerCase()));
   return !denied;
 };
@@ -29,20 +34,20 @@ export const classifyType = (candidate: CandidateItem): DraftType => {
 export const createDraftFromCandidate = (candidate: CandidateItem): DraftContent => {
   const type = classifyType(candidate);
   const headline = candidate.title.trim();
-  const snippet = candidate.snippet?.trim() || 'New update relevant to Two Rivers and Zephyrhills residents.';
+  const snippet = candidate.snippet?.trim() || '';
 
-  const bullets = [
-    `• ${snippet.substring(0, 140)}`,
-    `• Coverage is tied to ${candidate.sourceName} and local area updates.`,
-    `• This may affect planning for residents near Two Rivers.`
-  ];
+  // Use emojis instead of bullet points, no speculative lines
+  const bullets: string[] = [];
+  if (snippet) {
+        bullets.push(`📌 ${snippet.substring(0, 140)}`);
+  }
+    bullets.push(`📰 Source: ${candidate.sourceName}`);
 
   return {
     type,
     headline,
     bullets,
-    localContext:
-      'This update appears relevant for neighbors tracking growth and day-to-day changes around the Two Rivers area.',
+    localContext: '',
   };
 };
 
@@ -52,5 +57,9 @@ export const formatFacebookMessage = (draft: {
   localContext: string;
   sourceUrl: string;
 }) => {
-  return `${draft.headline}\n${draft.bullets}\n${draft.localContext}\nSource: ${draft.sourceUrl}`;
+  const parts = [draft.headline, draft.bullets];
+  if (draft.localContext) {
+    parts.push(draft.localContext);
+  }
+  return parts.join('\n');
 };
