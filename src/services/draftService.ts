@@ -9,6 +9,21 @@ import { publishToFacebook } from './facebookService';
 import { MarketDataProvider } from '../market/provider';
 
 export const createDailyDraft = async (): Promise<Draft | null> => {
+  // Daily cap: max 1 queued draft per day
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+  const todayCount = await prisma.draft.count({
+    where: {
+      dateFound: { gte: todayStart, lte: todayEnd },
+      type: { not: 'MARKET' }
+    }
+  });
+  if (todayCount >= 1) {
+    return null;
+  }
+
   const [candidates, denylist] = await Promise.all([fetchCandidates(), loadDenylist()]);
   const { isRelevant } = await import('./contentService');
 
@@ -40,10 +55,12 @@ export const createDailyDraft = async (): Promise<Draft | null> => {
         titleHash
       }
     });
+
     await sendApprovalRequestSms(draft.draftId, draft.headline);
     await appendDraftToSheet(draft);
     return draft;
   }
+
   return null;
 };
 
@@ -87,11 +104,11 @@ export const createWeeklyMarketDraft = async (provider: MarketDataProvider): Pro
 
   const headline = 'Two Rivers Weekly Market Snapshot';
   const bullets = [
-    `\u2022 Active Homes: ${snapshot.activeHomes}`,
-    `\u2022 Sold Last 30 Days: ${snapshot.soldLast30Days}`,
-    `\u2022 Price Reductions: ${snapshot.priceReductions}`,
-    `\u2022 Median Sold Price: ${snapshot.medianSoldPrice}`,
-    `\u2022 Avg Days on Market: ${snapshot.avgDaysOnMarket}`
+        `🏠 Active Homes: ${snapshot.activeHomes}`,
+        `✅ Sold Last 30 Days: ${snapshot.soldLast30Days}`,
+        `💰 Median Sold Price: ${snapshot.medianSoldPrice}`,
+        `📉 Price Reductions: ${snapshot.priceReductions}`,
+        `⏱️ Avg Days on Market: ${snapshot.avgDaysOnMarket}`
   ].join('\n');
 
   const draft = await prisma.draft.create({
@@ -101,8 +118,7 @@ export const createWeeklyMarketDraft = async (provider: MarketDataProvider): Pro
       type: 'MARKET',
       headline,
       bullets,
-      localContext:
-        'Inventory and pricing pace can shift week to week, so this snapshot is best used as a calm directional check-in.',
+      localContext: '',
       sourceUrl: 'local-market-placeholder',
       sourceName: 'Market Module',
       status: 'QUEUED',
@@ -110,6 +126,7 @@ export const createWeeklyMarketDraft = async (provider: MarketDataProvider): Pro
       titleHash: hashText(headline)
     }
   });
+
   await sendApprovalRequestSms(draft.draftId, draft.headline);
   await appendDraftToSheet(draft);
   return draft;
@@ -117,7 +134,7 @@ export const createWeeklyMarketDraft = async (provider: MarketDataProvider): Pro
 
 export const approveDraft = async (
   draftId: string,
-  publisher: (message: string) => Promise<{ id: string }> = publishToFacebook
+  publisher: (message: string, link?: string) => Promise<{ id: string }> = publishToFacebook
 ): Promise<Draft> => {
   const draft = await prisma.draft.findUnique({ where: { draftId } });
   if (!draft) {
@@ -126,9 +143,11 @@ export const approveDraft = async (
   if (draft.status === 'POSTED') {
     return draft;
   }
+
   const approved = await prisma.draft.update({ where: { draftId }, data: { status: 'APPROVED' } });
   const message = formatFacebookMessage(approved);
-  const fbPost = await publisher(message);
+  // Pass sourceUrl as link param for Graph API article preview
+  const fbPost = await publisher(message, approved.sourceUrl);
   return prisma.draft.update({
     where: { draftId },
     data: {
