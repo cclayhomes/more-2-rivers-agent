@@ -16,7 +16,10 @@ const schema = z.object({
   BASE_URL: z.string().default('http://localhost:3000'),
   GOOGLE_SHEETS_ID: z.string().optional(),
   GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().optional(),
-  GOOGLE_PRIVATE_KEY: z.string().optional()
+  GOOGLE_PRIVATE_KEY: z.string().optional(),
+  GMAIL_CLIENT_ID: z.string().optional(),
+  GMAIL_CLIENT_SECRET: z.string().optional(),
+  GMAIL_REFRESH_TOKEN: z.string().optional()
 });
 
 export const env = schema.parse(process.env);

@@ -5,8 +5,10 @@ import { createDraftFromCandidate, formatFacebookMessage } from './contentServic
 import { fetchCandidates, loadDenylist } from './sourceService';
 import { sendApprovalRequestSms } from './twilioService';
 import { appendDraftToSheet } from './googleSheetsService';
-import { publishToFacebook } from './facebookService';
+import { publishPhotoToFacebook, publishToFacebook } from './facebookService';
 import { MarketDataProvider } from '../market/provider';
+import { ParsedListingsCSV, ParsedMarketCSV } from './mlsParserService';
+import { generateListingsImage, generateMarketImage } from './imageService';
 
 export const createDailyDraft = async (): Promise<Draft | null> => {
   // Daily cap: max 1 queued draft per day
@@ -146,8 +148,27 @@ export const approveDraft = async (
 
   const approved = await prisma.draft.update({ where: { draftId }, data: { status: 'APPROVED' } });
   const message = formatFacebookMessage(approved);
-  // Pass sourceUrl as link param for Graph API article preview
-  const fbPost = await publisher(message, approved.sourceUrl);
+  const parsedImageData = approved.imageData ? JSON.parse(approved.imageData) : null;
+
+  const fbPost =
+    approved.type === 'MARKET' && parsedImageData
+      ? await publishPhotoToFacebook(
+          await generateMarketImage({
+            activeCount: parsedImageData.activeCount,
+            soldLast30: parsedImageData.soldLast30,
+            medianSoldPrice: parsedImageData.medianSoldPrice,
+            avgDOM: parsedImageData.avgDOM,
+            priceReductions: parsedImageData.priceReductions
+          }),
+          message
+        )
+      : approved.type === 'LISTINGS' && parsedImageData
+        ? await publishPhotoToFacebook(
+            await generateListingsImage({ listings: parsedImageData.listings || [] }),
+            message
+          )
+        : await publisher(message, approved.sourceUrl);
+
   return prisma.draft.update({
     where: { draftId },
     data: {
@@ -163,4 +184,110 @@ export const rejectDraft = async (draftId: string): Promise<Draft> => {
     where: { draftId },
     data: { status: 'REJECTED' }
   });
+};
+
+export const createMarketDraftFromEmail = async (csvData: ParsedMarketCSV): Promise<Draft> => {
+  const weekDate = new Date();
+  weekDate.setHours(0, 0, 0, 0);
+
+  await prisma.marketHistory.upsert({
+    where: {
+      community_weekDate: {
+        community: 'Two Rivers',
+        weekDate
+      }
+    },
+    update: {
+      activeCount: csvData.activeCount,
+      pendingCount: csvData.pendingCount,
+      soldLast30: csvData.soldLast30 ?? 0,
+      medianSold: csvData.medianSoldPrice,
+      avgDom: csvData.avgDOM
+    },
+    create: {
+      community: 'Two Rivers',
+      weekDate,
+      activeCount: csvData.activeCount,
+      pendingCount: csvData.pendingCount,
+      soldLast30: csvData.soldLast30 ?? 0,
+      medianSold: csvData.medianSoldPrice,
+      avgDom: csvData.avgDOM
+    }
+  });
+
+  await generateMarketImage({
+    activeCount: csvData.activeCount,
+    soldLast30: csvData.soldLast30,
+    medianSoldPrice: csvData.medianSoldPrice,
+    avgDOM: csvData.avgDOM,
+    priceReductions: csvData.priceReductions
+  });
+
+  const draft = await prisma.draft.create({
+    data: {
+      draftId: `${Date.now()}`,
+      dateFound: new Date(),
+      type: 'MARKET',
+      headline: 'Two Rivers Weekly Market Snapshot',
+      bullets: [
+        `🏠 Active Homes: ${csvData.activeCount}`,
+        `✅ Sold Last 30 Days: ${csvData.soldLast30 ?? 'NEEDS REVIEW'}`,
+        `💰 Median Sold Price: $${csvData.medianSoldPrice.toLocaleString('en-US')}`,
+        `⏱️ Avg Days on Market: ${csvData.avgDOM}`,
+        `📉 Price Reductions: ${csvData.priceReductions}`
+      ].join('\n'),
+      localContext: '',
+      sourceUrl: 'local-market-placeholder',
+      sourceName: 'MLS Email',
+      status: 'QUEUED',
+      urlHash: hashText(`market-email-${Date.now()}`),
+      titleHash: hashText(`market-email-title-${Date.now()}`),
+      imageData: JSON.stringify(csvData)
+    }
+  });
+
+  const smsHeadline =
+    csvData.soldLast30 === null ? `${draft.headline} [NEEDS REVIEW: SOLD COUNT MISSING]` : draft.headline;
+  await sendApprovalRequestSms(draft.draftId, smsHeadline);
+  await appendDraftToSheet(draft);
+  return draft;
+};
+
+export const createListingsDraftFromEmail = async (
+  csvData: ParsedListingsCSV
+): Promise<Draft | null> => {
+  if (csvData.newListingsCount === 0) {
+    return null;
+  }
+
+  await generateListingsImage({ listings: csvData.newListings });
+
+  const preview = csvData.newListings
+    .slice(0, 5)
+    .map(
+      (listing) =>
+        `🏡 ${listing.address} — $${listing.price.toLocaleString('en-US')} | ${listing.beds ?? '-'}bd/${listing.baths ?? '-'}ba`
+    )
+    .join('\n');
+
+  const draft = await prisma.draft.create({
+    data: {
+      draftId: `${Date.now()}`,
+      dateFound: new Date(),
+      type: 'LISTINGS',
+      headline: 'Two Rivers New Listings This Week',
+      bullets: `${preview}\n${csvData.newListingsCount > 5 ? `+ ${csvData.newListingsCount - 5} more` : ''}`,
+      localContext: '',
+      sourceUrl: 'local-listings-placeholder',
+      sourceName: 'MLS Email',
+      status: 'QUEUED',
+      urlHash: hashText(`listings-email-${Date.now()}`),
+      titleHash: hashText(`listings-email-title-${Date.now()}`),
+      imageData: JSON.stringify({ listings: csvData.newListings })
+    }
+  });
+
+  await sendApprovalRequestSms(draft.draftId, draft.headline);
+  await appendDraftToSheet(draft);
+  return draft;
 };

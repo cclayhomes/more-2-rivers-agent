@@ -1,5 +1,12 @@
 FROM node:20-slim
-RUN apt-get update -y && apt-get install -y openssl
+RUN apt-get update -y && apt-get install -y \
+  openssl \
+  build-essential \
+  libcairo2-dev \
+  libjpeg-dev \
+  libpango1.0-dev \
+  libgif-dev \
+  librsvg2-dev
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
