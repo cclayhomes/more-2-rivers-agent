@@ -144,13 +144,13 @@ export const createApp = () => {
     try {
       const sampleData = {
         listings: [
-          { address: '1234 River Oak Dr, Titusville', price: 389000, beds: 3, baths: 2 },
-          { address: '5678 Palm Bay Rd NE', price: 475000, beds: 4, baths: 3 },
-          { address: '910 Crane Creek Blvd', price: 529900, beds: 4, baths: 2.5 },
-          { address: '2468 Merritt Island Cswy', price: 349000, beds: 3, baths: 2 },
-          { address: '1357 Cocoa Beach Ave', price: 615000, beds: 5, baths: 3 },
-          { address: '7890 Viera Blvd', price: 445000, beds: 3, baths: 2 },
-          { address: '3456 Satellite Beach Dr', price: 520000, beds: 4, baths: 3 }
+          { address: '1234 River Oak Dr, Titusville', price: 389000, beds: 3, baths: 2, sqft: 1850, status: 'Active' },
+          { address: '5678 Palm Bay Rd NE', price: 475000, beds: 4, baths: 3, sqft: 2400, status: 'Active' },
+          { address: '910 Crane Creek Blvd', price: 529900, beds: 4, baths: 2.5, sqft: 2750, status: 'Active' },
+          { address: '2468 Merritt Island Cswy', price: 349000, beds: 3, baths: 2, sqft: 1650, status: 'Active' },
+          { address: '1357 Cocoa Beach Ave', price: 615000, beds: 5, baths: 3, sqft: 3200, status: 'Active' },
+          { address: '7890 Viera Blvd', price: 445000, beds: 3, baths: 2, sqft: 2100, status: 'Active' },
+          { address: '3456 Satellite Beach Dr', price: 520000, beds: 4, baths: 3, sqft: 2600, status: 'Active' }
         ]
       };
       const buffer = await generateListingsImage(sampleData);
