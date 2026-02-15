@@ -10,6 +10,7 @@ import { parseMarketSnapshotCsv, parseNewListingsCsv } from './services/mlsParse
 import { prisma } from './services/db';
 import { hashText } from './utils/hash';
 import { sendApprovalRequestSms } from './services/twilioService';
+import { generateMarketImage, generateListingsImage } from './services/imageService';
 
 export const createApp = () => {
   const app = express();
@@ -120,6 +121,45 @@ export const createApp = () => {
   });
 
   app.use('/', smsWebhook);
+
+    // Preview endpoints for branded graphics
+  app.get('/test/preview-market-image', async (_req, res) => {
+    try {
+      const sampleData = {
+        activeCount: 142,
+        soldLast30: 38,
+        medianSoldPrice: 425000,
+        avgDOM: 47,
+        priceReductions: 23
+      };
+      const buffer = await generateMarketImage(sampleData);
+      res.set('Content-Type', 'image/png');
+      res.send(buffer);
+    } catch (error) {
+      res.status(500).json({ success: false, error: String(error) });
+    }
+  });
+
+  app.get('/test/preview-listings-image', async (_req, res) => {
+    try {
+      const sampleData = {
+        listings: [
+          { address: '1234 River Oak Dr, Titusville', price: 389000, beds: 3, baths: 2 },
+          { address: '5678 Palm Bay Rd NE', price: 475000, beds: 4, baths: 3 },
+          { address: '910 Crane Creek Blvd', price: 529900, beds: 4, baths: 2.5 },
+          { address: '2468 Merritt Island Cswy', price: 349000, beds: 3, baths: 2 },
+          { address: '1357 Cocoa Beach Ave', price: 615000, beds: 5, baths: 3 },
+          { address: '7890 Viera Blvd', price: 445000, beds: 3, baths: 2 },
+          { address: '3456 Satellite Beach Dr', price: 520000, beds: 4, baths: 3 }
+        ]
+      };
+      const buffer = await generateListingsImage(sampleData);
+      res.set('Content-Type', 'image/png');
+      res.send(buffer);
+    } catch (error) {
+      res.status(500).json({ success: false, error: String(error) });
+    }
+  });
 
   return app;
 };
