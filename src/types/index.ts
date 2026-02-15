@@ -1,4 +1,4 @@
-export type DraftType = 'DEV' | 'SCHOOL' | 'INFRA' | 'EVENT' | 'MARKET' | 'NEWS';
+export type DraftType = 'DEV' | 'SCHOOL' | 'INFRA' | 'EVENT' | 'MARKET' | 'LISTINGS' | 'NEWS';
 export type DraftStatus = 'QUEUED' | 'APPROVED' | 'REJECTED' | 'POSTED';
 
 export interface SourceConfig {

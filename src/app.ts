@@ -1,6 +1,12 @@
 import express from 'express';
 import smsWebhook from './routes/smsWebhook';
 import { createDailyDraft, approveDraft, rejectDraft } from './services/draftService';
+import { fetchLatestMLSEmail } from './services/gmailService';
+import {
+  createListingsDraftFromEmail,
+  createMarketDraftFromEmail
+} from './services/draftService';
+import { parseMarketSnapshotCsv, parseNewListingsCsv } from './services/mlsParserService';
 import { prisma } from './services/db';
 import { hashText } from './utils/hash';
 import { sendApprovalRequestSms } from './services/twilioService';
@@ -71,6 +77,29 @@ export const createApp = () => {
     try {
       const draft = await rejectDraft(req.params.id);
       res.json({ success: true, draftId: draft.draftId, status: draft.status });
+    } catch (error) {
+      res.status(500).json({ success: false, error: String(error) });
+    }
+  });
+
+  app.get('/test/ingest-latest-mls-email', async (_req, res) => {
+    try {
+      const email = await fetchLatestMLSEmail();
+
+      if (email.emailType === 'MARKET') {
+        const parsed = parseMarketSnapshotCsv(email.csvContent);
+        const draft = await createMarketDraftFromEmail(parsed);
+        return res.json({ success: true, emailType: email.emailType, draft });
+      }
+
+      const parsed = parseNewListingsCsv(email.csvContent);
+      const draft = await createListingsDraftFromEmail(parsed);
+      return res.json({
+        success: true,
+        emailType: email.emailType,
+        draft,
+        skipped: draft === null ? 'No new listings in CSV' : undefined
+      });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
     }

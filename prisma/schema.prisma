@@ -20,6 +20,7 @@ model Draft {
   status          String    @default("QUEUED")
   postedAt        DateTime?
   facebookPostId  String?
+  imageData       String?
   urlHash         String
   titleHash       String
   createdAt       DateTime  @default(now())

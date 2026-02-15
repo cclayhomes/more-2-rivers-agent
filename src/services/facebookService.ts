@@ -1,4 +1,5 @@
 import axios from 'axios';
+import FormData from 'form-data';
 import { env } from '../config/env';
 
 const graph = axios.create({ baseURL: 'https://graph.facebook.com/v20.0', timeout: 15000 });
@@ -45,4 +46,27 @@ export const publishToFacebook = async (
     }
   }
   throw lastError;
+};
+
+export const publishPhotoToFacebook = async (
+  imageBuffer: Buffer,
+  caption: string
+): Promise<{ id: string }> => {
+  if (!env.FB_PAGE_ID || !env.FB_PAGE_ACCESS_TOKEN) {
+    throw new Error('Facebook credentials missing');
+  }
+
+  const form = new FormData();
+  form.append('caption', caption);
+  form.append('access_token', env.FB_PAGE_ACCESS_TOKEN);
+  form.append('source', imageBuffer, {
+    filename: 'more-2-rivers.png',
+    contentType: 'image/png'
+  });
+
+  const res = await graph.post(`/${env.FB_PAGE_ID}/photos`, form, {
+    headers: form.getHeaders()
+  });
+
+  return { id: res.data.id };
 };
