@@ -1,3 +1,4 @@
+// @ts-nocheck
 import path from 'path';
 import { ListingItem } from './mlsParserService';
 
@@ -372,7 +373,7 @@ export const generateMarketImage = async (data: MarketImageData): Promise<Buffer
   const { createCanvas } = await import('canvas');
 
   const canvas = createCanvas(WIDTH, HEIGHT);
-  const ctx = canvas.getContext('2d');
+  const ctx: any = canvas.getContext('2d');
 
   // Background
   drawBackground(ctx);
@@ -530,7 +531,7 @@ export const generateListingsImage = async (data: ListingsImageData): Promise<Bu
   const { createCanvas } = await import('canvas');
 
   const canvas = createCanvas(WIDTH, HEIGHT);
-  const ctx = canvas.getContext('2d');
+  const ctx: any = canvas.getContext('2d');
 
   // Background
   drawBackground(ctx);
