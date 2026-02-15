@@ -76,6 +76,20 @@ export const createApp = () => {
     }
   });
 
+  // Admin endpoint: return last 12 weeks of market history
+  app.get('/admin/market-history', async (_req, res) => {
+    try {
+      const history = await prisma.marketHistory.findMany({
+        where: { community: 'Two Rivers' },
+        orderBy: { weekDate: 'desc' },
+        take: 12
+      });
+      res.json({ success: true, community: 'Two Rivers', weeks: history.length, data: history });
+    } catch (error) {
+      res.status(500).json({ success: false, error: String(error) });
+    }
+  });
+
   app.use('/', smsWebhook);
 
   return app;
