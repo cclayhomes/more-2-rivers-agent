@@ -40,24 +40,58 @@ export const createDailyDraft = async (): Promise<Draft | null> => {
         titleHash
       }
     });
-
     await sendApprovalRequestSms(draft.draftId, draft.headline);
     await appendDraftToSheet(draft);
     return draft;
   }
-
   return null;
 };
 
 export const createWeeklyMarketDraft = async (provider: MarketDataProvider): Promise<Draft> => {
   const snapshot = await provider.getSnapshot();
+
+  // Parse numeric values for historical storage
+  const activeCount = parseInt(snapshot.activeHomes, 10) || 0;
+  const pendingCount = 0; // Will be populated when MLS data is wired
+  const soldLast30 = parseInt(snapshot.soldLast30Days, 10) || 0;
+  const medianSold = parseInt(snapshot.medianSoldPrice.replace(/[^0-9]/g, ''), 10) || 0;
+  const avgDom = parseInt(snapshot.avgDaysOnMarket, 10) || 0;
+
+  // Store in MarketHistory (upsert to prevent duplicates)
+  const today = new Date();
+  const weekDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  await prisma.marketHistory.upsert({
+    where: {
+      community_weekDate: {
+        community: 'Two Rivers',
+        weekDate
+      }
+    },
+    update: {
+      activeCount,
+      pendingCount,
+      soldLast30,
+      medianSold,
+      avgDom
+    },
+    create: {
+      community: 'Two Rivers',
+      weekDate,
+      activeCount,
+      pendingCount,
+      soldLast30,
+      medianSold,
+      avgDom
+    }
+  });
+
   const headline = 'Two Rivers Weekly Market Snapshot';
   const bullets = [
-    `• Active Homes: ${snapshot.activeHomes}`,
-    `• Sold Last 30 Days: ${snapshot.soldLast30Days}`,
-    `• Price Reductions: ${snapshot.priceReductions}`,
-    `• Median Sold Price: ${snapshot.medianSoldPrice}`,
-    `• Avg Days on Market: ${snapshot.avgDaysOnMarket}`
+    `\u2022 Active Homes: ${snapshot.activeHomes}`,
+    `\u2022 Sold Last 30 Days: ${snapshot.soldLast30Days}`,
+    `\u2022 Price Reductions: ${snapshot.priceReductions}`,
+    `\u2022 Median Sold Price: ${snapshot.medianSoldPrice}`,
+    `\u2022 Avg Days on Market: ${snapshot.avgDaysOnMarket}`
   ].join('\n');
 
   const draft = await prisma.draft.create({
@@ -76,7 +110,6 @@ export const createWeeklyMarketDraft = async (provider: MarketDataProvider): Pro
       titleHash: hashText(headline)
     }
   });
-
   await sendApprovalRequestSms(draft.draftId, draft.headline);
   await appendDraftToSheet(draft);
   return draft;
@@ -93,11 +126,9 @@ export const approveDraft = async (
   if (draft.status === 'POSTED') {
     return draft;
   }
-
   const approved = await prisma.draft.update({ where: { draftId }, data: { status: 'APPROVED' } });
   const message = formatFacebookMessage(approved);
   const fbPost = await publisher(message);
-
   return prisma.draft.update({
     where: { draftId },
     data: {
