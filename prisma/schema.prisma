@@ -28,3 +28,19 @@ model Draft {
   @@index([status])
   @@index([urlHash, titleHash])
 }
+
+
+model MarketHistory {
+  id               Int      @id @default(autoincrement())
+  community        String
+  weekDate         DateTime
+  activeCount      Int
+  pendingCount     Int
+  soldLast30       Int
+  medianSold       Int
+  avgDom           Int
+  newListingsCount Int?
+  createdAt        DateTime @default(now())
+
+  @@unique([community, weekDate])
+}
