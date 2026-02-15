@@ -15,7 +15,10 @@ export const validateFacebookToken = async () => {
   }
 };
 
-export const publishToFacebook = async (message: string): Promise<{ id: string }> => {
+export const publishToFacebook = async (
+  message: string,
+  link?: string
+): Promise<{ id: string }> => {
   if (!env.FB_PAGE_ID || !env.FB_PAGE_ACCESS_TOKEN) {
     throw new Error('Facebook credentials missing');
   }
@@ -26,18 +29,20 @@ export const publishToFacebook = async (message: string): Promise<{ id: string }
   while (attempts < 3) {
     attempts += 1;
     try {
-      const res = await graph.post(`/${env.FB_PAGE_ID}/feed`, null, {
-        params: {
-          message,
-          access_token: env.FB_PAGE_ACCESS_TOKEN
-        }
-      });
+      const params: Record<string, string> = {
+        message,
+        access_token: env.FB_PAGE_ACCESS_TOKEN
+      };
+      // If link is provided, use Graph API link param for article preview
+      if (link && link !== 'local-market-placeholder') {
+        params.link = link;
+      }
+      const res = await graph.post(`/${env.FB_PAGE_ID}/feed`, null, { params });
       return { id: res.data.id };
     } catch (error) {
       lastError = error;
       await new Promise((resolve) => setTimeout(resolve, attempts * 600));
     }
   }
-
   throw lastError;
 };
