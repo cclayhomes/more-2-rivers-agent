@@ -640,14 +640,14 @@ export const generateListingsImage = async (data: ListingsMarketUpdateImageData)
   ctx.fillRect(0, 920, WIDTH, 5);
 
   ctx.save();
+  ctx.textAlign = 'center';
   ctx.fillStyle = WHITE;
-  ctx.font = `800 43px ${FONT_DISPLAY}, sans-serif`;
-  ctx.fillText('MORE FLORIDA HOMES', 60, 1003);
+  ctx.font = `800 36px ${FONT_DISPLAY}, sans-serif`;
+  ctx.fillText('MORE FLORIDA HOMES', WIDTH / 2, 970);
 
-  ctx.textAlign = 'right';
   ctx.fillStyle = TEAL;
-  ctx.font = `600 30px ${FONT_BODY}, sans-serif`;
-  ctx.fillText('863-225-0060 | team@morefla.com', 1020, 1003);
+  ctx.font = `600 26px ${FONT_BODY}, sans-serif`;
+  ctx.fillText('863-225-0060 | team@morefla.com', WIDTH / 2, 1020);
   ctx.restore();
 
   return canvas.toBuffer('image/png');
