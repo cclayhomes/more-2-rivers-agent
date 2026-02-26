@@ -14,6 +14,17 @@ export interface ListingsImageData {
   listings: ListingItem[];
 }
 
+export interface ListingsMarketSnapshotData {
+  medianSoldPrice?: number | null;
+  newListingsCount?: number | null;
+  avgDOM?: number | null;
+  priceReductions?: number | null;
+}
+
+export interface ListingsMarketUpdateImageData extends ListingsImageData {
+  marketSnapshot?: ListingsMarketSnapshotData;
+}
+
 const WIDTH = 1080;
 const HEIGHT = 1080;
 
@@ -25,6 +36,7 @@ const WHITE = '#FFFFFF';
 // Accents (pick 1–2 that match your brand vibe)
 const TEAL = '#38E1D0';
 const ORANGE = '#FFB347';
+const LIGHT_GRAY = '#F4F4F4';
 
 // Typography (registered font family names)
 const FONT_DISPLAY = 'Inter';     // bold headings / big numbers
@@ -526,102 +538,117 @@ function drawChip(ctx: any, x: number, y: number, text: string, accent: string) 
   return w;
 }
 
-export const generateListingsImage = async (data: ListingsImageData): Promise<Buffer> => {
+export const generateListingsImage = async (data: ListingsMarketUpdateImageData): Promise<Buffer> => {
   await registerBrandFonts();
   const { createCanvas } = await import('canvas');
 
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx: any = canvas.getContext('2d');
 
-  // Background
-  drawBackground(ctx);
+  const listings = data.listings || [];
+  const featuredListing =
+    listings.reduce<ListingItem | null>((top, listing) => {
+      if (!top || listing.price > top.price) {
+        return listing;
+      }
+      return top;
+    }, null) || {
+      address: 'No featured listing available',
+      price: 0,
+      beds: null,
+      baths: null,
+      sqft: null,
+      status: 'Active'
+    };
+
+  const statValues = {
+    medianSoldPrice: data.marketSnapshot?.medianSoldPrice ?? 0,
+    newListingsCount: data.marketSnapshot?.newListingsCount ?? listings.length,
+    avgDOM: data.marketSnapshot?.avgDOM ?? 0,
+    priceReductions: data.marketSnapshot?.priceReductions ?? 0
+  };
+
+  ctx.fillStyle = WHITE;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   // Header
-  drawHeader(ctx, 'Two Rivers', 'New Listings This Week');
+  ctx.fillStyle = NAVY;
+  ctx.fillRect(0, 0, WIDTH, 120);
+  ctx.fillStyle = TEAL;
+  ctx.fillRect(0, 115, WIDTH, 5);
 
-  // Panel
-  const panelX = 70;
-  const panelY = 190;
-  const panelW = WIDTH - 140;
-  const panelH = 720;
-  drawGlassPanel(ctx, panelX, panelY, panelW, panelH, 34);
-
-  // Panel heading
   ctx.save();
+  ctx.textAlign = 'center';
   ctx.fillStyle = WHITE;
-  ctx.font = `800 30px ${FONT_DISPLAY}, sans-serif`;
-  ctx.fillText('Featured New Listings', panelX + 30, panelY + 62);
-
-  const total = data.listings.length;
-  drawPill(
-    ctx,
-    panelX + panelW - 240,
-    panelY + 32,
-    `${total} new`,
-    'rgba(255,179,71,0.18)',
-    WHITE
-  );
+  ctx.font = `800 64px ${FONT_DISPLAY}, sans-serif`;
+  ctx.fillText('2 RIVERS MARKET UPDATE', WIDTH / 2, 72);
+  ctx.fillStyle = TEAL;
+  ctx.font = `600 29px ${FONT_BODY}, sans-serif`;
+  ctx.fillText(getWeekOfLabel(), WIDTH / 2, 104);
   ctx.restore();
 
-  const featured = data.listings.slice(0, 3);
-  const remaining = total > featured.length ? total - featured.length : 0;
+  const stats = [
+    { label: 'MEDIAN SOLD', value: formatCurrency(statValues.medianSoldPrice), x: 270, y: 280 },
+    { label: 'NEW LISTINGS', value: safeNumber(statValues.newListingsCount, '0'), x: 810, y: 280 },
+    { label: 'AVG. DAYS ON MARKET', value: safeNumber(statValues.avgDOM, '0'), x: 270, y: 520 },
+    { label: 'PRICE REDUCTIONS', value: safeNumber(statValues.priceReductions, '0'), x: 810, y: 520 }
+  ];
 
-  const cardGap = 18;
-  const cardX = panelX + 30;
-  const cardW = panelW - 60;
-  const cardH = 164;
+  stats.forEach((stat) => {
+    const lineX = stat.x - 170;
+    ctx.fillStyle = TEAL;
+    ctx.fillRect(lineX, stat.y - 58, 4, 116);
 
-  featured.forEach((listing, idx) => {
-    const y = panelY + 105 + idx * (cardH + cardGap);
-    drawGlassPanel(ctx, cardX, y, cardW, cardH, 26);
-
-    // Left icon (house)
-    drawHouseIcon(ctx, cardX + 22, y + 22, 52, TEAL);
-
-    // Address
     ctx.save();
-    ctx.fillStyle = WHITE;
-    ctx.font = `800 30px ${FONT_DISPLAY}, sans-serif`;
-    const address = clampText(ctx, listing.address, cardW - 240);
-    ctx.fillText(address, cardX + 86, y + 58);
-
-    // Price big
-    ctx.font = `900 52px ${FONT_DISPLAY}, sans-serif`;
-    ctx.fillStyle = WHITE;
-    ctx.fillText(formatCurrency(listing.price), cardX + 86, y + 122);
-
-    // Chips: bd/ba/sqft (if available)
-    let chipX = cardX + cardW - 360;
-    const chipY = y + 46;
-
-    const beds = listing.beds ?? null;
-    const baths = listing.baths ?? null;
-    const sqft = (listing as any).sqft ?? null; // only if your parser includes it
-
-    chipX += drawChip(ctx, chipX, chipY, `${beds ?? '—'} bd`, TEAL) + 10;
-    chipX += drawChip(ctx, chipX, chipY, `${baths ?? '—'} ba`, ORANGE) + 10;
-
-    if (sqft) {
-      drawChip(ctx, cardX + cardW - 160, chipY, `${sqft} sf`, 'rgba(255,255,255,0.85)');
-    }
-
-    // Small subtext
-    ctx.font = `600 20px ${FONT_BODY}, sans-serif`;
-    ctx.fillStyle = 'rgba(255,255,255,0.72)';
-    ctx.fillText('New this week • Ask us for incentives & strategy', cardX + 86, y + 150);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = ORANGE;
+    ctx.font = `700 36px ${FONT_BODY}, sans-serif`;
+    ctx.fillText(stat.label, stat.x, stat.y - 56);
+    ctx.fillStyle = NAVY;
+    ctx.font = `800 96px ${FONT_DISPLAY}, sans-serif`;
+    ctx.fillText(stat.value, stat.x, stat.y + 40);
     ctx.restore();
   });
 
-  // Remaining callout
-  if (remaining > 0) {
-    const y = panelY + 105 + featured.length * (cardH + cardGap) + 10;
-    ctx.save();
-    drawPill(ctx, panelX + 30, y, `+ ${remaining} more new listings`, 'rgba(56,225,208,0.16)', WHITE);
-    ctx.restore();
-  }
+  // Featured listing box
+  const featuredY = 680;
+  const featuredH = 180;
+  const featuredX = 60;
+  const featuredW = WIDTH - 120;
+  ctx.save();
+  roundedRectPath(ctx, featuredX, featuredY, featuredW, featuredH, 22);
+  ctx.fillStyle = LIGHT_GRAY;
+  ctx.fill();
 
-  // Footer branding
-  drawBrandFooter(ctx);
+  ctx.fillStyle = NAVY;
+  ctx.font = `800 35px ${FONT_DISPLAY}, sans-serif`;
+  ctx.fillText('Hottest Listing This Week', featuredX + 40, featuredY + 54);
+
+  ctx.font = `800 41px ${FONT_DISPLAY}, sans-serif`;
+  const featuredAddress = clampText(ctx, featuredListing.address || 'Address unavailable', featuredW - 80);
+  ctx.fillText(featuredAddress, featuredX + 40, featuredY + 102);
+
+  const details = `${featuredListing.beds ?? '—'} Bed | ${featuredListing.baths ?? '—'} Bath | ${featuredListing.sqft ? featuredListing.sqft.toLocaleString('en-US') : '—'} SqFt - ${formatCurrency(featuredListing.price)}`;
+  ctx.font = `500 32px ${FONT_BODY}, sans-serif`;
+  ctx.fillText(clampText(ctx, details, featuredW - 80), featuredX + 40, featuredY + 146);
+  ctx.restore();
+
+  // Footer
+  ctx.fillStyle = NAVY;
+  ctx.fillRect(0, 920, WIDTH, HEIGHT - 920);
+  ctx.fillStyle = TEAL;
+  ctx.fillRect(0, 920, WIDTH, 5);
+
+  ctx.save();
+  ctx.fillStyle = WHITE;
+  ctx.font = `800 43px ${FONT_DISPLAY}, sans-serif`;
+  ctx.fillText('MORE FLORIDA HOMES', 60, 1003);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = TEAL;
+  ctx.font = `600 30px ${FONT_BODY}, sans-serif`;
+  ctx.fillText('863-225-0060 | team@morefla.com', 1020, 1003);
+  ctx.restore();
 
   return canvas.toBuffer('image/png');
 };

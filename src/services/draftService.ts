@@ -9,6 +9,42 @@ import { MarketDataProvider } from '../market/provider';
 import { ParsedListingsCSV, ParsedMarketCSV } from './mlsParserService';
 import { generateListingsImage, generateMarketImage } from './imageService';
 
+const formatListingsMarketUpdatePost = (
+  listings: ParsedListingsCSV['newListings'],
+  marketSnapshot: { medianSoldPrice: number; newListingsCount: number; avgDOM: number; priceReductions: number }
+): string => {
+  const featured =
+    listings.reduce((top, listing) => {
+      if (!top || listing.price > top.price) {
+        return listing;
+      }
+      return top;
+    }, listings[0] ?? null) ?? {
+      address: 'No featured listing available',
+      price: 0,
+      beds: null,
+      baths: null,
+      sqft: null,
+      status: 'Active'
+    };
+
+  const featuredLine = `${featured.address} - $${featured.price.toLocaleString('en-US')} | ${featured.beds ?? '—'}bd/${featured.baths ?? '—'}ba | ${featured.sqft ? featured.sqft.toLocaleString('en-US') : '—'} sqft`;
+
+  return [
+    'Two Rivers Weekly Market Update',
+    '',
+    `New Listings: ${marketSnapshot.newListingsCount}`,
+    `Median Sold Price: $${marketSnapshot.medianSoldPrice.toLocaleString('en-US')}`,
+    `Avg Days on Market: ${marketSnapshot.avgDOM}`,
+    `Price Reductions: ${marketSnapshot.priceReductions}`,
+    '',
+    `Hottest Listing: ${featuredLine}`,
+    '',
+    'Interested in Two Rivers? Contact us!',
+    'team@morefla.com | 863-225-0060'
+  ].join('\n');
+};
+
 export const createDailyDraft = async (): Promise<Draft | null> => {
   // Daily cap: max 1 queued draft per day
   const todayStart = new Date();
@@ -163,7 +199,15 @@ export const approveDraft = async (
         )
       : approved.type === 'LISTINGS' && parsedImageData
         ? await publishPhotoToFacebook(
-            await generateListingsImage({ listings: parsedImageData.listings || [] }),
+            await generateListingsImage({
+            listings: parsedImageData.listings || [],
+            marketSnapshot: {
+              medianSoldPrice: parsedImageData.medianSoldPrice,
+              newListingsCount: parsedImageData.newListingsCount,
+              avgDOM: parsedImageData.avgDOM,
+              priceReductions: parsedImageData.priceReductions
+            }
+          }),
             message
           )
         : await publisher(message, approved.sourceUrl);
@@ -261,19 +305,24 @@ export const createListingsDraftFromEmail = async (
     return null;
   }
 
-  await generateListingsImage({ listings: csvData.newListings });
+  const latestMarketHistory = await prisma.marketHistory.findFirst({
+    where: { community: 'Two Rivers' },
+    orderBy: { weekDate: 'desc' }
+  });
 
-  const preview = csvData.newListings
-    .slice(0, 5)
-    .map((listing) => {
-      const hasBedsOrBaths = listing.beds !== null || listing.baths !== null;
-      const bedBathText = hasBedsOrBaths
-        ? `${listing.beds ?? 0}bd/${listing.baths ?? 0}ba`
-        : null;
+  const marketSnapshot = {
+    medianSoldPrice: latestMarketHistory?.medianSold ?? 0,
+    newListingsCount: csvData.newListingsCount,
+    avgDOM: latestMarketHistory?.avgDom ?? 0,
+    priceReductions: 0
+  };
 
-      return `🏡 ${listing.address} — $${listing.price.toLocaleString('en-US')}${bedBathText ? ` | ${bedBathText}` : ''}`;
-    })
-    .join('\n');
+  await generateListingsImage({
+    listings: csvData.newListings,
+    marketSnapshot
+  });
+
+  const postSummary = formatListingsMarketUpdatePost(csvData.newListings, marketSnapshot);
 
   const draft = await prisma.draft.create({
     data: {
@@ -281,14 +330,14 @@ export const createListingsDraftFromEmail = async (
       dateFound: new Date(),
       type: 'LISTINGS',
       headline: 'Two Rivers New Listings This Week',
-      bullets: `${preview}\n${csvData.newListingsCount > 5 ? `+ ${csvData.newListingsCount - 5} more` : ''}`,
+      bullets: postSummary,
       localContext: '',
       sourceUrl: 'local-listings-placeholder',
       sourceName: 'MLS Email',
       status: 'QUEUED',
       urlHash: hashText(`listings-email-${Date.now()}`),
       titleHash: hashText(`listings-email-title-${Date.now()}`),
-      imageData: JSON.stringify({ listings: csvData.newListings })
+      imageData: JSON.stringify({ listings: csvData.newListings, ...marketSnapshot })
     }
   });
 
