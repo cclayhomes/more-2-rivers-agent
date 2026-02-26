@@ -13,6 +13,7 @@ export interface ListingItem {
   beds: number | null;
   baths: number | null;
   sqft: number | null;
+  mlsNumber?: string | null;
   status: string;
 }
 
@@ -130,7 +131,10 @@ export const parseListingsFromHtml = (html: string): ParsedListingsCSV => {
 
   const listings = textListings.map((listingText) => {
     const priceMatch = listingText.match(/\$\s?([\d,]{3,})/i);
-    const detailsMatch = listingText.match(/(\d+(?:\.\d+)?)\s*bd\s*[•·]\s*(\d+(?:\.\d+)?)\s*ba\s*[•·]\s*([\d,]+)\s*sq\s*ft/i);
+    const bedsMatch = listingText.match(/(\d+(?:\.\d+)?)\s*bd\b/i);
+    const bathsMatch = listingText.match(/(\d+(?:\.\d+)?)\s*ba\b/i);
+    const sqftMatch = listingText.match(/([\d,]+)\s*sq\s*ft\b/i);
+    const mlsMatch = listingText.match(/MLS\s*#\s*([A-Za-z0-9-]+)/i);
     const lines = listingText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     const cityStateZipLine = lines.find((line) => /[A-Za-z .'-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)\s+\d{5}(?:-\d{4})?\b/i.test(line));
     const cityStateZipMatch = cityStateZipLine?.match(/([A-Za-z .'-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)\s+\d{5}(?:-\d{4})?)/i);
@@ -147,9 +151,10 @@ export const parseListingsFromHtml = (html: string): ParsedListingsCSV => {
     return {
       address,
       price: parseInteger(priceMatch?.[1] || ''),
-      beds: parseOptionalInteger(detailsMatch?.[1] || ''),
-      baths: parseOptionalInteger(detailsMatch?.[2] || ''),
-      sqft: parseOptionalInteger(detailsMatch?.[3] || ''),
+      beds: parseOptionalInteger(bedsMatch?.[1] || ''),
+      baths: parseOptionalInteger(bathsMatch?.[1] || ''),
+      sqft: parseOptionalInteger(sqftMatch?.[1] || ''),
+      mlsNumber: mlsMatch?.[1] || null,
       status: 'Active'
     };
   }).filter((listing) => listing.address && listing.price > 0);
