@@ -1,7 +1,7 @@
 import { CandidateItem, DraftContent, DraftType } from '../types';
 
-// V1 scope: ONLY "Two Rivers" qualifies. No Zephyrhills/Pasco fallback.
-const PRIMARY = ['two rivers'];
+// V1 scope: broader Two Rivers + surrounding Pasco/Wesley Chapel coverage area.
+const PRIMARY = ['two rivers', 'wesley chapel', 'pasco county', 'zephyrhills', 'sr-56', 'sr 56', 'epperson', 'bexley', 'asturia', 'connerton', 'shady hills', 'land o lakes', 'wiregrass'];
 
 const TYPE_MAP: Array<{ keywords: string[]; type: DraftType }> = [
   { keywords: ['school', 'student', 'district'], type: 'SCHOOL' },
@@ -14,9 +14,9 @@ const TYPE_MAP: Array<{ keywords: string[]; type: DraftType }> = [
 export const isRelevant = (candidate: CandidateItem, denylist: string[]): boolean => {
   const text = `${candidate.title} ${candidate.textForMatch}`.toLowerCase();
 
-  // Hard rule: "two rivers" must appear in title OR fetched text
-  const hasTwoRivers = text.includes('two rivers');
-  if (!hasTwoRivers) {
+  // Hard rule: at least one PRIMARY keyword must appear in title OR fetched text
+  const hasPrimaryKeyword = PRIMARY.some((keyword) => text.includes(keyword));
+  if (!hasPrimaryKeyword) {
     return false;
   }
 
