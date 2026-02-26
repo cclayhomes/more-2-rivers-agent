@@ -265,10 +265,14 @@ export const createListingsDraftFromEmail = async (
 
   const preview = csvData.newListings
     .slice(0, 5)
-    .map(
-      (listing) =>
-        `🏡 ${listing.address} — $${listing.price.toLocaleString('en-US')} | ${listing.beds ?? '-'}bd/${listing.baths ?? '-'}ba`
-    )
+    .map((listing) => {
+      const hasBedsOrBaths = listing.beds !== null || listing.baths !== null;
+      const bedBathText = hasBedsOrBaths
+        ? `${listing.beds ?? 0}bd/${listing.baths ?? 0}ba`
+        : null;
+
+      return `🏡 ${listing.address} — $${listing.price.toLocaleString('en-US')}${bedBathText ? ` | ${bedBathText}` : ''}`;
+    })
     .join('\n');
 
   const draft = await prisma.draft.create({

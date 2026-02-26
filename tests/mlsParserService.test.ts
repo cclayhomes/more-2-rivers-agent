@@ -10,8 +10,7 @@ describe('parseListingsFromHtml', () => {
         <tr><td><div>Residential</div></td></tr>
         <tr><td><div>1673 SUTTONSET TRL</div></td></tr>
         <tr><td><div>ZEPHYRHILLS, Florida 33541</div></td></tr>
-        <tr><td><div>4 bd • 2 ba • 2,109 sqft</div></td></tr>
-        <tr><td><div>MLS #O6384771</div></td></tr>
+        <tr><td><div>4 bd  •    •  2,109 sqft  MLS #O6384771</div></td></tr>
         <tr><td><div>New Listing</div></td></tr>
       </table>
       <hr />
@@ -27,8 +26,9 @@ describe('parseListingsFromHtml', () => {
         address: '1673 SUTTONSET TRL, ZEPHYRHILLS, Florida 33541',
         price: 577777,
         beds: 4,
-        baths: 2,
+        baths: null,
         sqft: 2109,
+        mlsNumber: 'O6384771',
         status: 'Active'
       }
     ]);
