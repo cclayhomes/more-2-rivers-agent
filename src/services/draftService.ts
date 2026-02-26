@@ -246,7 +246,11 @@ export const createMarketDraftFromEmail = async (csvData: ParsedMarketCSV): Prom
   });
 
   await approveDraft(draft.draftId);
-  await appendDraftToSheet(draft);
+  try {
+    await appendDraftToSheet(draft);
+  } catch (error) {
+    console.error('Failed to append market draft to Google Sheets', error);
+  }
   return prisma.draft.findUniqueOrThrow({ where: { draftId: draft.draftId } });
 };
 
@@ -285,6 +289,10 @@ export const createListingsDraftFromEmail = async (
   });
 
   await approveDraft(draft.draftId);
-  await appendDraftToSheet(draft);
+  try {
+    await appendDraftToSheet(draft);
+  } catch (error) {
+    console.error('Failed to append listings draft to Google Sheets', error);
+  }
   return prisma.draft.findUniqueOrThrow({ where: { draftId: draft.draftId } });
 };
