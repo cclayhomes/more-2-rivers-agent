@@ -1,4 +1,5 @@
 import { CandidateItem, DraftContent, DraftType } from '../types';
+import { sanitizeSnippet } from './sourceService';
 
 // Tier 1: direct community mentions are auto-relevant.
 const DIRECT_COMMUNITY = ['two rivers', 'epperson', 'bexley', 'asturia', 'connerton'];
@@ -53,14 +54,14 @@ export const classifyType = (candidate: CandidateItem): DraftType => {
 export const createDraftFromCandidate = (candidate: CandidateItem): DraftContent => {
   const type = classifyType(candidate);
   const headline = candidate.title.trim();
-  const snippet = candidate.snippet?.trim() || '';
+  const snippet = sanitizeSnippet(candidate.snippet);
 
   // Use emojis instead of bullet points, no speculative lines
   const bullets: string[] = [];
-  if (snippet) {
-        bullets.push(`📌 ${snippet.substring(0, 140)}`);
+  if (snippet && snippet.length > 0) {
+    bullets.push(`📌 ${snippet.substring(0, 140)}`);
   }
-    bullets.push(`📰 Source: ${candidate.sourceName}`);
+  bullets.push(`📰 Source: ${candidate.sourceName}`);
 
   return {
     type,

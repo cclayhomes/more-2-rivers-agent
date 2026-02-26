@@ -7,6 +7,39 @@ import { CandidateItem, SourceConfig } from '../types';
 
 const parser = new Parser();
 
+const GARBAGE_PATTERNS = [
+  /please enable javascript/i,
+  /enable javascript/i,
+  /please enable cookies/i,
+  /enable cookies/i,
+  /to continue reading/i,
+  /subscribe to continue/i,
+  /sign in to read/i,
+  /log in to continue/i,
+  /you need to enable/i,
+  /this site requires/i,
+  /your browser does not support/i,
+  /javascript is required/i,
+  /javascript is disabled/i,
+  /cookies are required/i,
+  /please update your browser/i,
+  /unsupported browser/i,
+  /access denied/i,
+  /403 forbidden/i,
+  /404 not found/i,
+  /page not found/i,
+  /loading\.\.\./i
+];
+
+export const sanitizeSnippet = (snippet: string | undefined): string => {
+  if (!snippet) return '';
+  const trimmed = snippet.trim();
+  if (trimmed.length < 20) return '';
+  const isGarbage = GARBAGE_PATTERNS.some((pattern) => pattern.test(trimmed));
+  if (isGarbage) return '';
+  return trimmed;
+};
+
 const readJson = async <T>(filename: string): Promise<T> => {
   const filePath = path.resolve(process.cwd(), filename);
   const data = await fs.readFile(filePath, 'utf-8');
@@ -18,14 +51,17 @@ export const loadDenylist = () => readJson<string[]>('denylist.json');
 
 const parseRss = async (source: SourceConfig): Promise<CandidateItem[]> => {
   const feed = await parser.parseURL(source.url);
-  return (feed.items || []).map((item) => ({
-    title: item.title || 'Untitled',
-    url: item.link || source.url,
-    publishedDate: item.pubDate ? new Date(item.pubDate) : undefined,
-    snippet: item.contentSnippet,
-    sourceName: source.name,
-    textForMatch: `${item.title || ''} ${item.contentSnippet || ''}`
-  }));
+  return (feed.items || []).map((item) => {
+    const sanitizedSnippet = sanitizeSnippet(item.contentSnippet);
+    return {
+      title: item.title || 'Untitled',
+      url: item.link || source.url,
+      publishedDate: item.pubDate ? new Date(item.pubDate) : undefined,
+      snippet: sanitizedSnippet,
+      sourceName: source.name,
+      textForMatch: `${item.title || ''} ${sanitizedSnippet}`
+    };
+  });
 };
 
 const parseHtml = async (source: SourceConfig): Promise<CandidateItem[]> => {
