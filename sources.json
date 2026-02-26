@@ -1,23 +1,23 @@
 [
   {
-    "name": "Google News: Two Rivers Florida",
+    "name": "Bing News: Two Rivers Florida",
     "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%22two+rivers%22+florida&hl=en-US&gl=US&ceid=US:en"
+    "url": "https://www.bing.com/news/search?q=%22two+rivers%22+florida&format=rss"
   },
   {
-    "name": "Google News: Two Rivers Pasco County",
+    "name": "Bing News: Two Rivers Pasco County",
     "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%22two+rivers%22+pasco+county&hl=en-US&gl=US&ceid=US:en"
+    "url": "https://www.bing.com/news/search?q=%22two+rivers%22+pasco+county&format=rss"
   },
   {
-    "name": "Google News: Wesley Chapel development",
+    "name": "Bing News: Wesley Chapel Florida",
     "type": "rss",
-    "url": "https://news.google.com/rss/search?q=wesley+chapel+florida+development&hl=en-US&gl=US&ceid=US:en"
+    "url": "https://www.bing.com/news/search?q=wesley+chapel+florida+development&format=rss"
   },
   {
-    "name": "Google News: Pasco County Florida news",
+    "name": "Bing News: Pasco County Florida",
     "type": "rss",
-    "url": "https://news.google.com/rss/search?q=pasco+county+florida+news&hl=en-US&gl=US&ceid=US:en"
+    "url": "https://www.bing.com/news/search?q=pasco+county+florida+news&format=rss"
   },
   {
     "name": "WFLA Pasco County",
