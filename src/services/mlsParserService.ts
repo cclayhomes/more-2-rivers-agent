@@ -113,38 +113,46 @@ export const parseNewListingsCsv = (csvRaw: string): ParsedListingsCSV => {
 
 export const parseListingsFromHtml = (html: string): ParsedListingsCSV => {
   const normalizedHtml = html.replace(/\r/g, '');
-  const blocks = normalizedHtml
-    .split(/(?:<hr\b[^>]*>|(?:\n\s*){2,})/i)
-    .map((block) => block.trim())
-    .filter((block) => /(mls\s*#?|\$\s?[\d,]{4,}|beds?|baths?|sq\.?\s?ft)/i.test(block));
+  const footerCutoff = normalizedHtml.search(/(?:Have\s+a\s+Question\?|Delivered\s+By|Cotality)/i);
+  const contentHtml = footerCutoff >= 0 ? normalizedHtml.slice(0, footerCutoff) : normalizedHtml;
+  const plainText = decodeHtmlEntities(contentHtml)
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/\s*(?:p|div|tr|td|table|h[1-6])\s*>/gi, '\n')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
 
-  const listings = blocks.map((block) => {
-    const text = stripHtml(block);
+  const listingPattern = /(\$\s?[\d,]{3,}[\s\S]*?MLS\s*#\s*[A-Za-z0-9-]+[\s\S]*?(?=\$\s?[\d,]{3,}|$))/gi;
+  const textListings = Array.from(plainText.matchAll(listingPattern)).map((match) => match[1].trim());
 
-    const priceMatch = text.match(/\$\s?([\d,]{3,})/i);
-    const bedsMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:beds?|bd)\b/i);
-    const bathsMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:baths?|ba)\b/i);
-    const sqftMatch = text.match(/([\d,]{3,})\s*(?:sq\.?\s*ft|sqft|sf)\b/i);
-    const mlsMatch = text.match(/mls\s*(?:#|no\.?|number)?\s*[:#-]?\s*([A-Za-z0-9-]+)/i);
-    const statusMatch = text.match(/\b(New Listing|Price Change|Back on Market|Pending|Sold|Active|Coming Soon)\b/i);
+  const listings = textListings.map((listingText) => {
+    const priceMatch = listingText.match(/\$\s?([\d,]{3,})/i);
+    const detailsMatch = listingText.match(/(\d+(?:\.\d+)?)\s*bd\s*[•·]\s*(\d+(?:\.\d+)?)\s*ba\s*[•·]\s*([\d,]+)\s*sq\s*ft/i);
+    const lines = listingText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    const cityStateZipLine = lines.find((line) => /[A-Za-z .'-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)\s+\d{5}(?:-\d{4})?\b/i.test(line));
+    const cityStateZipMatch = cityStateZipLine?.match(/([A-Za-z .'-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)\s+\d{5}(?:-\d{4})?)/i);
+    const cityStateZip = cityStateZipMatch?.[1]?.trim();
+    const cityStateZipIndex = cityStateZipLine ? lines.indexOf(cityStateZipLine) : -1;
+    const streetLine = cityStateZipIndex > 0 ? lines[cityStateZipIndex - 1] : '';
+    const street = streetLine && /\d+\s+/.test(streetLine) ? streetLine : '';
 
-    const addressLine = text
-      .split(/\s{2,}|\|/)
-      .map((part) => part.trim())
-      .find((part) => /\d+\s+.+/.test(part) && !/\$|beds?|baths?|sq\.?\s?ft|mls/i.test(part));
-
-    const cityStateZipMatch = text.match(/([A-Za-z .'-]+,\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/);
-    const address = [addressLine, cityStateZipMatch?.[1]].filter(Boolean).join(', ').trim();
+    const address = [street, cityStateZip]
+      .filter(Boolean)
+      .join(', ')
+      .trim();
 
     return {
       address,
       price: parseInteger(priceMatch?.[1] || ''),
-      beds: parseOptionalInteger(bedsMatch?.[1] || ''),
-      baths: parseOptionalInteger(bathsMatch?.[1] || ''),
-      sqft: parseOptionalInteger(sqftMatch?.[1] || ''),
-      status: statusMatch?.[1] || (mlsMatch ? `MLS ${mlsMatch[1]}` : 'Active')
+      beds: parseOptionalInteger(detailsMatch?.[1] || ''),
+      baths: parseOptionalInteger(detailsMatch?.[2] || ''),
+      sqft: parseOptionalInteger(detailsMatch?.[3] || ''),
+      status: 'Active'
     };
-  }).filter((listing) => listing.address);
+  }).filter((listing) => listing.address && listing.price > 0);
 
   return {
     newListings: listings,
