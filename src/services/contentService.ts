@@ -1,7 +1,21 @@
 import { CandidateItem, DraftContent, DraftType } from '../types';
 
-// V1 scope: broader Two Rivers + surrounding Pasco/Wesley Chapel coverage area.
-const PRIMARY = ['two rivers', 'wesley chapel', 'pasco county', 'zephyrhills', 'sr-56', 'sr 56', 'epperson', 'bexley', 'asturia', 'connerton', 'shady hills', 'land o lakes', 'wiregrass'];
+// Tier 1: direct community mentions are auto-relevant.
+const DIRECT_COMMUNITY = ['two rivers', 'epperson', 'bexley', 'asturia', 'connerton'];
+
+// Tier 2: broader area keywords need an additional community-impact signal.
+const BROADER_AREA = ['wesley chapel', 'pasco county', 'zephyrhills', 'sr-56', 'sr 56', 'shady hills', 'land o lakes', 'wiregrass'];
+
+const COMMUNITY_IMPACT_SIGNALS = [
+  'school', 'zoning', 'development', 'new homes', 'builder', 'construction',
+  'road', 'infrastructure', 'water', 'sewer', 'utility', 'permit',
+  'parks', 'recreation', 'library', 'fire station', 'hospital',
+  'hoa', 'community meeting', 'town hall', 'rezoning', 'land use',
+  'grocery', 'shopping', 'retail', 'restaurant', 'opening',
+  'traffic', 'intersection', 'bridge', 'fdot', 'i-75', 'sr 54',
+  'property tax', 'assessment', 'flood', 'hurricane', 'storm',
+  'master plan', 'comprehensive plan', 'impact fee'
+];
 
 const TYPE_MAP: Array<{ keywords: string[]; type: DraftType }> = [
   { keywords: ['school', 'student', 'district'], type: 'SCHOOL' },
@@ -14,9 +28,14 @@ const TYPE_MAP: Array<{ keywords: string[]; type: DraftType }> = [
 export const isRelevant = (candidate: CandidateItem, denylist: string[]): boolean => {
   const text = `${candidate.title} ${candidate.textForMatch}`.toLowerCase();
 
-  // Hard rule: at least one PRIMARY keyword must appear in title OR fetched text
-  const hasPrimaryKeyword = PRIMARY.some((keyword) => text.includes(keyword));
-  if (!hasPrimaryKeyword) {
+  // Tier 1: Direct community mention = auto-pass
+  const hasDirect = DIRECT_COMMUNITY.some((kw) => text.includes(kw));
+
+  // Tier 2: Broader area requires a community-impact signal
+  const hasBroader = BROADER_AREA.some((kw) => text.includes(kw));
+  const hasImpact = COMMUNITY_IMPACT_SIGNALS.some((kw) => text.includes(kw));
+
+  if (!hasDirect && !(hasBroader && hasImpact)) {
     return false;
   }
 
