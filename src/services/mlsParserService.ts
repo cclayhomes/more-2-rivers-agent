@@ -61,6 +61,25 @@ const parseOptionalInteger = (value: string): number | null => {
   return Number.isFinite(numeric) ? numeric : null;
 };
 
+const decodeHtmlEntities = (value: string): string => {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+};
+
+const stripHtml = (value: string): string => {
+  return decodeHtmlEntities(value)
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 export const parseMarketSnapshotCsv = (csvRaw: string): ParsedMarketCSV => {
   const rows = parseCsv(csvRaw);
   const row = rows[0] || {};
@@ -89,5 +108,46 @@ export const parseNewListingsCsv = (csvRaw: string): ParsedListingsCSV => {
   return {
     newListings,
     newListingsCount: newListings.length
+  };
+};
+
+export const parseListingsFromHtml = (html: string): ParsedListingsCSV => {
+  const normalizedHtml = html.replace(/\r/g, '');
+  const blocks = normalizedHtml
+    .split(/(?:<hr\b[^>]*>|(?:\n\s*){2,})/i)
+    .map((block) => block.trim())
+    .filter((block) => /(mls\s*#?|\$\s?[\d,]{4,}|beds?|baths?|sq\.?\s?ft)/i.test(block));
+
+  const listings = blocks.map((block) => {
+    const text = stripHtml(block);
+
+    const priceMatch = text.match(/\$\s?([\d,]{3,})/i);
+    const bedsMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:beds?|bd)\b/i);
+    const bathsMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:baths?|ba)\b/i);
+    const sqftMatch = text.match(/([\d,]{3,})\s*(?:sq\.?\s*ft|sqft|sf)\b/i);
+    const mlsMatch = text.match(/mls\s*(?:#|no\.?|number)?\s*[:#-]?\s*([A-Za-z0-9-]+)/i);
+    const statusMatch = text.match(/\b(New Listing|Price Change|Back on Market|Pending|Sold|Active|Coming Soon)\b/i);
+
+    const addressLine = text
+      .split(/\s{2,}|\|/)
+      .map((part) => part.trim())
+      .find((part) => /\d+\s+.+/.test(part) && !/\$|beds?|baths?|sq\.?\s?ft|mls/i.test(part));
+
+    const cityStateZipMatch = text.match(/([A-Za-z .'-]+,\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/);
+    const address = [addressLine, cityStateZipMatch?.[1]].filter(Boolean).join(', ').trim();
+
+    return {
+      address,
+      price: parseInteger(priceMatch?.[1] || ''),
+      beds: parseOptionalInteger(bedsMatch?.[1] || ''),
+      baths: parseOptionalInteger(bathsMatch?.[1] || ''),
+      sqft: parseOptionalInteger(sqftMatch?.[1] || ''),
+      status: statusMatch?.[1] || (mlsMatch ? `MLS ${mlsMatch[1]}` : 'Active')
+    };
+  }).filter((listing) => listing.address);
+
+  return {
+    newListings: listings,
+    newListingsCount: listings.length
   };
 };

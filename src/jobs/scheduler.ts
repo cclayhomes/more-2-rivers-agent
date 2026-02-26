@@ -1,6 +1,7 @@
 import cron from 'node-cron';
-import { createDailyDraft, createWeeklyMarketDraft } from '../services/draftService';
-import { PlaceholderMarketProvider } from '../market/provider';
+import { createDailyDraft, createListingsDraftFromEmail } from '../services/draftService';
+import { fetchLatestMLSEmail } from '../services/gmailService';
+import { parseListingsFromHtml } from '../services/mlsParserService';
 
 export const startJobs = () => {
   cron.schedule('0 8 * * *', async () => {
@@ -8,7 +9,8 @@ export const startJobs = () => {
   }, { timezone: 'America/New_York' });
 
   cron.schedule('0 9 * * 2', async () => {
-    const provider = new PlaceholderMarketProvider();
-    await createWeeklyMarketDraft(provider);
+    const email = await fetchLatestMLSEmail();
+    const parsed = parseListingsFromHtml(email.htmlContent);
+    await createListingsDraftFromEmail(parsed);
   }, { timezone: 'America/New_York' });
 };

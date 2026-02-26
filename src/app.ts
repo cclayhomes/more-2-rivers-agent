@@ -5,7 +5,7 @@ import {
   createListingsDraftFromEmail,
   createMarketDraftFromEmail
 } from './services/draftService';
-import { parseMarketSnapshotCsv, parseNewListingsCsv } from './services/mlsParserService';
+import { parseListingsFromHtml, parseMarketSnapshotCsv } from './services/mlsParserService';
 import { prisma } from './services/db';
 import { hashText } from './utils/hash';
 import { generateMarketImage, generateListingsImage } from './services/imageService';
@@ -92,18 +92,18 @@ export const createApp = () => {
       const email = await fetchLatestMLSEmail();
 
       if (email.emailType === 'MARKET') {
-        const parsed = parseMarketSnapshotCsv(email.csvContent);
+        const parsed = parseMarketSnapshotCsv(email.htmlContent);
         const draft = await createMarketDraftFromEmail(parsed);
         return res.json({ success: true, emailType: email.emailType, draft });
       }
 
-      const parsed = parseNewListingsCsv(email.csvContent);
+      const parsed = parseListingsFromHtml(email.htmlContent);
       const draft = await createListingsDraftFromEmail(parsed);
       return res.json({
         success: true,
         emailType: email.emailType,
         draft,
-        skipped: draft === null ? 'No new listings in CSV' : undefined
+        skipped: draft === null ? 'No new listings in MLS email body' : undefined
       });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
