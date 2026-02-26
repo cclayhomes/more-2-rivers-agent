@@ -1,5 +1,4 @@
 import express from 'express';
-import smsWebhook from './routes/smsWebhook';
 import { createDailyDraft, approveDraft, rejectDraft } from './services/draftService';
 import { fetchLatestMLSEmail } from './services/gmailService';
 import {
@@ -9,7 +8,6 @@ import {
 import { parseMarketSnapshotCsv, parseNewListingsCsv } from './services/mlsParserService';
 import { prisma } from './services/db';
 import { hashText } from './utils/hash';
-import { sendApprovalRequestSms } from './services/twilioService';
 import { generateMarketImage, generateListingsImage } from './services/imageService';
 
 export const createApp = () => {
@@ -58,8 +56,14 @@ export const createApp = () => {
           titleHash: hashText(headline + Date.now())
         }
       });
-      await sendApprovalRequestSms(draft.draftId, draft.headline);
-      res.json({ success: true, draftId: draft.draftId, headline: draft.headline, status: draft.status });
+      const postedDraft = await approveDraft(draft.draftId);
+      res.json({
+        success: true,
+        draftId: postedDraft.draftId,
+        headline: postedDraft.headline,
+        status: postedDraft.status,
+        facebookPostId: postedDraft.facebookPostId
+      });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
     }
@@ -119,8 +123,6 @@ export const createApp = () => {
       res.status(500).json({ success: false, error: String(error) });
     }
   });
-
-  app.use('/', smsWebhook);
 
     // Preview endpoints for branded graphics
   app.get('/test/preview-market-image', async (_req, res) => {
