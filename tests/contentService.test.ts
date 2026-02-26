@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isRelevant } from '../src/services/contentService';
+import { createDraftFromCandidate, isRelevant } from '../src/services/contentService';
 import { CandidateItem } from '../src/types';
 
 const createCandidate = (title: string, textForMatch = ''): CandidateItem => ({
@@ -33,5 +33,17 @@ describe('content relevance filtering', () => {
     const candidate = createCandidate('Two Rivers community update');
 
     expect(isRelevant(candidate, ['update'])).toBe(false);
+  });
+});
+
+
+describe('draft creation', () => {
+  it('does not include a snippet bullet when snippet sanitizes to empty', () => {
+    const candidate = createCandidate('Two Rivers adds new amenities', 'Two Rivers update');
+    candidate.snippet = 'please enable JavaScript to continue reading';
+
+    const draft = createDraftFromCandidate(candidate);
+
+    expect(draft.bullets.some((bullet) => bullet.startsWith('📌 '))).toBe(false);
   });
 });
