@@ -9,7 +9,7 @@ export interface LatestMLSEmail {
   subject: string;
   from: string;
   emailType: IngestedEmailType;
-  csvContent: string;
+  htmlContent: string;
 }
 
 const getGmailClient = () => {
@@ -26,7 +26,8 @@ const decodePartBody = (data?: string): string => {
   if (!data) {
     return '';
   }
-  return Buffer.from(data, 'base64').toString('utf8');
+  const normalized = data.replace(/-/g, '+').replace(/_/g, '/');
+  return Buffer.from(normalized, 'base64').toString('utf8');
 };
 
 const collectParts = (payload: any): any[] => {
@@ -49,43 +50,32 @@ const collectParts = (payload: any): any[] => {
   return parts;
 };
 
-const extractCsvAttachment = async (gmail: ReturnType<typeof google.gmail>, message: any): Promise<string> => {
+const extractHtmlBody = (message: any): string => {
   const payload = message.payload;
   const parts = collectParts(payload);
 
-  const csvPart = parts.find(
-    (part) =>
-      part?.filename?.toLowerCase().endsWith('.csv') ||
-      part?.mimeType === 'text/csv' ||
-      part?.mimeType === 'application/vnd.ms-excel'
-  );
-
-  if (!csvPart) {
-    throw new Error('CSV attachment not found');
+  const htmlPart = parts.find((part) => part?.mimeType === 'text/html' && part?.body?.data);
+  if (htmlPart?.body?.data) {
+    return decodePartBody(htmlPart.body.data);
   }
 
-  if (csvPart.body?.data) {
-    return decodePartBody(csvPart.body.data);
+  const plainTextPart = parts.find((part) => part?.mimeType === 'text/plain' && part?.body?.data);
+  if (plainTextPart?.body?.data) {
+    return decodePartBody(plainTextPart.body.data);
   }
 
-  if (!csvPart.body?.attachmentId) {
-    throw new Error('CSV attachment body missing');
+  if (payload?.body?.data) {
+    return decodePartBody(payload.body.data);
   }
 
-  const attachment = await gmail.users.messages.attachments.get({
-    userId: 'me',
-    messageId: message.id,
-    id: csvPart.body.attachmentId
-  });
-
-  return decodePartBody(attachment.data.data || '');
+  throw new Error('HTML or plain text body not found in MLS email');
 };
 
 export const fetchLatestMLSEmail = async (): Promise<LatestMLSEmail> => {
   const gmail = getGmailClient();
   const list = await gmail.users.messages.list({
     userId: 'me',
-    q: 'in:inbox has:attachment filename:csv',
+    q: 'in:inbox from:stellarmatrix.com',
     maxResults: 10
   });
 
@@ -109,14 +99,14 @@ export const fetchLatestMLSEmail = async (): Promise<LatestMLSEmail> => {
       continue;
     }
 
-    const csvContent = await extractCsvAttachment(gmail, message.data);
+    const htmlContent = extractHtmlBody(message.data);
 
     return {
       id: item.id,
       subject,
       from,
       emailType,
-      csvContent
+      htmlContent
     };
   }
 
