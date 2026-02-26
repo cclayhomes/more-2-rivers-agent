@@ -3,7 +3,6 @@ import { prisma } from './db';
 import { hashText } from '../utils/hash';
 import { createDraftFromCandidate, formatFacebookMessage } from './contentService';
 import { fetchCandidates, loadDenylist } from './sourceService';
-import { sendApprovalRequestSms } from './twilioService';
 import { appendDraftToSheet } from './googleSheetsService';
 import { publishPhotoToFacebook, publishToFacebook } from './facebookService';
 import { MarketDataProvider } from '../market/provider';
@@ -58,9 +57,9 @@ export const createDailyDraft = async (): Promise<Draft | null> => {
       }
     });
 
-    await sendApprovalRequestSms(draft.draftId, draft.headline);
+    await approveDraft(draft.draftId);
     await appendDraftToSheet(draft);
-    return draft;
+    return prisma.draft.findUniqueOrThrow({ where: { draftId: draft.draftId } });
   }
 
   return null;
@@ -129,9 +128,9 @@ export const createWeeklyMarketDraft = async (provider: MarketDataProvider): Pro
     }
   });
 
-  await sendApprovalRequestSms(draft.draftId, draft.headline);
+  await approveDraft(draft.draftId);
   await appendDraftToSheet(draft);
-  return draft;
+  return prisma.draft.findUniqueOrThrow({ where: { draftId: draft.draftId } });
 };
 
 export const approveDraft = async (
@@ -246,11 +245,9 @@ export const createMarketDraftFromEmail = async (csvData: ParsedMarketCSV): Prom
     }
   });
 
-  const smsHeadline =
-    csvData.soldLast30 === null ? `${draft.headline} [NEEDS REVIEW: SOLD COUNT MISSING]` : draft.headline;
-  await sendApprovalRequestSms(draft.draftId, smsHeadline);
+  await approveDraft(draft.draftId);
   await appendDraftToSheet(draft);
-  return draft;
+  return prisma.draft.findUniqueOrThrow({ where: { draftId: draft.draftId } });
 };
 
 export const createListingsDraftFromEmail = async (
@@ -287,7 +284,7 @@ export const createListingsDraftFromEmail = async (
     }
   });
 
-  await sendApprovalRequestSms(draft.draftId, draft.headline);
+  await approveDraft(draft.draftId);
   await appendDraftToSheet(draft);
-  return draft;
+  return prisma.draft.findUniqueOrThrow({ where: { draftId: draft.draftId } });
 };
