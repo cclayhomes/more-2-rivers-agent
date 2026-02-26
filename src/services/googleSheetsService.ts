@@ -7,9 +7,20 @@ const getAuth = () => {
     return null;
   }
 
+  let privateKey = env.GOOGLE_PRIVATE_KEY;
+
+  try {
+    const parsedKey = JSON.parse(env.GOOGLE_PRIVATE_KEY) as { private_key?: string };
+    if (parsedKey.private_key) {
+      privateKey = parsedKey.private_key;
+    }
+  } catch {
+    // GOOGLE_PRIVATE_KEY is already a PEM string.
+  }
+
   return new google.auth.JWT({
     email: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    key: privateKey.replace(/\\n/g, '\n'),
     scopes: ['https://www.googleapis.com/auth/spreadsheets']
   });
 };
