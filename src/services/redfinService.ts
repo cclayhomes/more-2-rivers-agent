@@ -40,7 +40,7 @@ export const fetchRedfinMarketData = async (): Promise<RedfinMarketData | null> 
     const html = await response.text();
     const text = cleanHtmlToText(html);
 
-    const medianMatch = text.match(/selling for a median price of \$([\d,]+)/i);
+    const medianMatch = text.match(/selling for a median price of \$([\d,]+)(K?)/i);
     const avgDomMatch = text.match(/sell after\s+(\d+)\s+days on the market/i);
     const homesSoldMatch = text.match(/(\d+)\s+homes sold/i);
     const belowListPriceMatch = text.match(/([\d.]+)%\s+below list price/i);
@@ -49,7 +49,8 @@ export const fetchRedfinMarketData = async (): Promise<RedfinMarketData | null> 
       return null;
     }
 
-    const medianSoldPrice = parseFirstInt(medianMatch[1]);
+        const medianSoldPriceRaw = parseFirstInt(medianMatch[1]);
+        const medianSoldPrice = medianMatch[2]?.toUpperCase() === 'K' ? medianSoldPriceRaw * 1000 : medianSoldPriceRaw;
     const avgDOM = parseFirstInt(avgDomMatch[1]);
     const homesSoldCount = parseFirstInt(homesSoldMatch[1]);
 
