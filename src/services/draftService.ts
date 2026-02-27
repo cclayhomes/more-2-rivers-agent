@@ -8,6 +8,7 @@ import { publishPhotoToFacebook, publishToFacebook } from './facebookService';
 import { MarketDataProvider } from '../market/provider';
 import { ParsedListingsCSV, ParsedMarketCSV } from './mlsParserService';
 import { generateListingsImage, generateMarketImage } from './imageService';
+import { fetchRedfinMarketData } from './redfinService';
 
 const formatListingsMarketUpdatePost = (
   listings: ParsedListingsCSV['newListings'],
@@ -305,16 +306,50 @@ export const createListingsDraftFromEmail = async (
     return null;
   }
 
-  const latestMarketHistory = await prisma.marketHistory.findFirst({
-    where: { community: 'Two Rivers' },
-    orderBy: { weekDate: 'desc' }
-  });
+  const redfinData = await fetchRedfinMarketData();
+
+  if (redfinData) {
+    const weekDate = new Date();
+    weekDate.setHours(0, 0, 0, 0);
+
+    await prisma.marketHistory.upsert({
+      where: {
+        community_weekDate: {
+          community: 'Two Rivers',
+          weekDate
+        }
+      },
+      update: {
+        soldLast30: redfinData.homesSoldCount,
+        medianSold: redfinData.medianSoldPrice,
+        avgDom: redfinData.avgDOM,
+        newListingsCount: csvData.newListingsCount
+      },
+      create: {
+        community: 'Two Rivers',
+        weekDate,
+        activeCount: 0,
+        pendingCount: 0,
+        soldLast30: redfinData.homesSoldCount,
+        medianSold: redfinData.medianSoldPrice,
+        avgDom: redfinData.avgDOM,
+        newListingsCount: csvData.newListingsCount
+      }
+    });
+  }
+
+  const latestMarketHistory = !redfinData
+    ? await prisma.marketHistory.findFirst({
+        where: { community: 'Two Rivers' },
+        orderBy: { weekDate: 'desc' }
+      })
+    : null;
 
   const marketSnapshot = {
-    medianSoldPrice: latestMarketHistory?.medianSold ?? 0,
+    medianSoldPrice: redfinData?.medianSoldPrice ?? latestMarketHistory?.medianSold ?? 0,
     newListingsCount: csvData.newListingsCount,
-    avgDOM: latestMarketHistory?.avgDom ?? 0,
-    priceReductions: 0
+    avgDOM: redfinData?.avgDOM ?? latestMarketHistory?.avgDom ?? 0,
+    priceReductions: redfinData?.priceReductions ?? 0
   };
 
   await generateListingsImage({
